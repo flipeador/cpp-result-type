@@ -100,18 +100,18 @@ export
 			: m_success(result.m_success)
 		{
 			if (m_success)
-				new (&m_storage) ok_t(std::forward<const ok_t>(result.Ok()));
+				new (&m_storage) ok_t(result.Ok());
 			else
-				new (&m_storage) err_t(std::forward<const err_t>(result.Err()));
+				new (&m_storage) err_t(result.Err());
 		}
 
 		Result(Result&& result)
 			: m_success(result.m_success)
 		{
 			if (m_success)
-				new (&m_storage) ok_t(std::forward<ok_t>(result.Ok()));
+				new (&m_storage) ok_t(std::move(result.Ok()));
 			else
-				new (&m_storage) err_t(std::forward<err_t>(result.Err()));
+				new (&m_storage) err_t(std::move(result.Err()));
 			result.~Result();
 		}
 
