@@ -123,13 +123,22 @@ export
 				Err().~err_t();
 		}
 
+		template <class T = ok_t>
+		typename std::enable_if_t<!std::is_same_v<T, None>, T>
+		TryGet(const T& defval) const
+		{
+			if (m_success)
+				return Ok();
+			return defval;
+		}
+
 		/// <summary>
 		/// Gets the success value. This function cannot be called when the value is None.
 		/// If the result is an error, the program terminates with an error message.
 		/// </summary>
 		template <class T = ok_t>
 		typename std::enable_if_t<!std::is_same_v<T, None>, T>
-		GetOk()
+		GetOk() const
 		{
 			if (!m_success)
 				ErrorTerminate("Attempting to Result::GetOk an error Result.");
@@ -140,7 +149,7 @@ export
 		/// Gets the error value.
 		/// If the result is not an error, the program terminates with an error message.
 		/// </summary>
-		err_t GetErr()
+		err_t GetErr() const
 		{
 			if (m_success)
 				ErrorTerminate("Attempting to Result::GetErr an ok Result.");
@@ -151,7 +160,7 @@ export
 		/// Gets the success value, can be None.
 		/// If the result is an error, the program terminates with the specified error message.
 		/// </summary>
-		ok_t Expect(const char* msg)
+		ok_t Expect(const char* msg) const
 		{
 			if (!m_success)
 				ErrorTerminate(msg);
