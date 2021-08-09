@@ -86,7 +86,7 @@ auto ret = result.Expect("failed to retrieve the value");  // can be None
 assert(ret == 3);  // true
 ```
 
-`GetOk()` can also be used to extract the value of a `Result`, yielding the value of an `Ok(ok_t)` value or terminating the program otherwise:
+`GetOk()` can also be used to extract the value of a `Result`, yielding the value of an `Ok(ok_t)` value or terminating the program otherwise.
 
 ```cpp
 Result<int, int> result = Ok(3);
@@ -94,9 +94,20 @@ auto ret = result.GetOk();  // cannot be None
 assert(ret == 3);  // true
 ```
 
-Instead a terminating the program, `TryGet` can be used to return a default value for an `Err(err_t)` Result:
+Instead of terminating the program, `TryGet` can be used to return a default value for an `Err(err_t)` `Result`.
 
 ```cpp
 Result<int, int> result = Err(0);
 std::cout << result.TryGet(7) << std::endl;  // 7
+```
+
+---
+
+## The `None` type
+
+Use the `None` type to specify success without an associated value. The error value cannot be `None`.
+
+```cpp
+Result<None, int> result = Ok();
+assert(result);  // true
 ```
