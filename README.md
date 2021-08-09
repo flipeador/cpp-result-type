@@ -1,131 +1,102 @@
-# Result
+# Result — C++20 using modules
 
 ## Overview
 
-`Result<T, E>` is a template type that can be used to return and propage errors. It can be used to replace
-exceptions in context where they are not allowed or too slow to be used. `Result<T, E>` is an algebraic data
-type of `Ok(T)` that represents success and `Err(E)` representing an error.
+`Result<ok_t, err_t>` is a template type that can be used to return and propage errors.
+It can be used to replace exceptions in context where they are not allowed or too slow to be used.
+`Result<ok_t, err_t>` is an algebraic data type of `Ok(ok_t)` that represents success and `Err(err_t)` representing an error.
 
 Design of this class has been mainly inspired by Rust's [std::result](https://doc.rust-lang.org/std/result/)
 
-```
+```cpp
+import <iostream>;
+import <string>;
+import result;
+
+using namespace std;
 
 struct Request {
+    Request() { cout << "Request()" << endl; }
+    ~Request() { cout << "~Request()" << endl; }
 };
 
 struct Error {
-
-    enum class Kind {
+    enum class Kind : short {
         Timeout,
         Invalid,
         TooLong
-    }
+    };
 
-    Error(Kind kind, std::string text);
+    Error(Kind kind, string msg)
+        : kind(kind), msg(msg)
+    { cout << "Error()" << endl; }
+
+    ~Error() { cout << "~Error()" << endl; }
 
     Kind kind;
-    std::string text;
+    string msg;
 };
 
-Result<Request, Error> parseRequest(const std::string& payload) {
-    if (payload.size() > 512) return Err(Error(Kind::TooLong, "Request exceeded maximum allowed size (512 bytes)"));
+Result<shared_ptr<Request>, shared_ptr<Error>> ParseRequest(const string& payload, size_t maxsize = 512)
+{
+    if (payload.size() > maxsize)
+        return Err(make_shared<Error>(Error::Kind::TooLong, "request exceeded maximum allowed size"));
 
-    Request request;
+    auto request = make_shared<Request>();
     return Ok(request);
 }
 
-std::string payload = receivePayload();
-auto request = parseRequest(payload).expect("Failed to parse request");
+int main()
+{
+    auto request = ParseRequest("payload", 1);
+
+    if (request)
+        cout << "Success!" << endl;
+    else {
+        auto error = request.GetErr();
+
+        string kind("Unknown");
+        switch (error->kind)
+        {
+        case Error::Kind::Timeout: kind = "Timeout"; break;
+        case Error::Kind::Invalid: kind = "Invalid"; break;
+        case Error::Kind::TooLong: kind = "TooLong"; break;
+        }
+
+        cout << "Failure!" << endl;
+        cout << "Kind: " << kind << endl;
+        cout << "Message: " << error->msg << endl;
+    }
+
+    return 0;
+}
 ```
 
 To return a successfull `Result`, use the `Ok()` function. To return an error one, use the `Err()` function.
 
-## Extract and unwrap
+---
 
-To extract the value from a `Result<T, E>` type, you can use the `expect()` function that will yield the value
-of an `Ok(T)` or terminate the program with an error message passed as a parameter.
+## TryGet, GetOk, GetErr and Expect
 
-```
-Result<uint32_t, uint32_t> r1 = Ok(3u);
+To extract the value from a `Result<ok_t, err_t>` type, you can use the `Expect()` function that will yield the value of an `Ok(ok_t)` or terminate the program with an error message passed as a parameter.
 
-auto val = r1.expect("Failed to retrieve the value");
-assert(val == 3);
-```
-
-`unwrap()` can also be used to extract the value of a `Result`, yielding the value of an `Ok(T)` value or terminating
-the program otherwise:
-
-```
-Result<uint32_t, uint32_t> r1 = Ok(3u);
-
-auto val = r1.unwrap();
-assert(val == 3);
+```cpp
+Result<int, int> result = Ok(3);
+auto ret = result.Expect("failed to retrieve the value");  // can be None
+assert(ret == 3);  // true
 ```
 
-Instead a terminating the program, `unwrapOr` can be used to return a default value for an `Err(E)` Result:
+`GetOk()` can also be used to extract the value of a `Result`, yielding the value of an `Ok(ok_t)` value or terminating the program otherwise:
 
-```
-Result<uint32_t, uint32_t> r1 = Err(9u);
-
-auto val = r1.unwrapOr(0);
-assert(val == 0);
-```
-
-## Map and bind
-
-To transform (or map) a `Result<T, E>` to a `Result<U, E>`, `Result` provides a `map` member function.
-`map` will apply a function to a contained `Ok(T)` value and will return the result of the transformation,
-and will leave an `Err(E)` untouched:
-
-```
-std::string stringify(int val) { return std::to_string(val); }
-
-Result<uint32_t, uint32_t> r1 = Ok(2u);
-auto r2 = r1.map(stringify); // Maps a Result<uint32_t, uint32_t> to Result<std::string, uint32_t>
-
-assert(r2.unwrap(), "2");
+```cpp
+Result<int, int> result = Ok(3);
+auto ret = result.GetOk();  // cannot be None
+assert(ret == 3);  // true
 ```
 
-Note that `map` should return a simple value and not a `Result<U, E>`. A function returning nothing (`void`)
-applied to a `Result<T, E>` will yield a `Result<void, E>`.
+Instead a terminating the program, `TryGet` can be used to return a default value for an `Err(err_t)` Result:
 
-To map a function to a contained `Err(E)` value, use the `mapError` function.
-
-To *bind* a `Result<T, E>` to a `Result<U, E>`, you can use the `andThen` member function:
-
+```cpp
+Result<int, int> result = Err(0);
+std::cout << result.TryGet(7) << std::endl;  // 7
 ```
-Result<uint32_t, uint32_t> square(uint32_t val) { return Ok(val * val); }
-
-Result<uint32_t, uint32_t> r1 = Ok(3u);
-auto r2 = r1.andThen(square);
-
-assert(r2.unwrap(), 9);
-```
-
-Use `orElse` to apply a function to a contained `Err(E)` value:
-
-```
-Result<uint32_t, uint32_t> identity(uint32_t val) { return Ok(val); }
-
-Result<uint32_t, uint32_t> r1 = Err(3u);
-assert(r1.andThen(identity).orElse(square).unwrap(), 9);
-```
-
-## The TRY macro
-
-Like Rust, a `TRY` macro is also provided that comes in handy when writing code that calls a lot of functions returning a `Result`.
-
-the `TRY` macro will simply call its argument and short-cirtcuit the function returning an `Err(E)` if the operation returned an error `Result`:
-
-```
-Result<void, IoError> copy(int srcFd, const char* dstFile) {
-
-    auto fd = TRY(open(dstFile));
-    auto data = TRY(read(srcFd));
-    TRY(write(fd, data));
-
-    return Ok();
-}
-```
-
-Note that this macro uses a special extension called *compound statement* only supported by gcc and clang
